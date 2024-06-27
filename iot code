@@ -1,0 +1,63 @@
+pip install paho-mqtt
+import time
+import random
+import json
+import threading
+import paho.mqtt.client as mqtt
+
+# MQTT Broker (Replace with your broker's address)
+broker_address = "broker.example.com"
+broker_port = 1883
+
+# Virtual Smart Light Bulb
+light_bulb_state = False
+
+# Callback function for MQTT connection
+def on_connect(client, userdata, flags, rc):
+    print(f"Connected with result code {rc}")
+    # Subscribe to the command topic
+    client.subscribe("smart_home/light_bulb/command")
+
+# Callback function for MQTT message received
+def on_message(client, userdata, msg):
+    global light_bulb_state
+    payload = msg.payload.decode("utf-8")
+    print(f"Received message on topic {msg.topic}: {payload}")
+    if msg.topic == "smart_home/light_bulb/command":
+        if payload == "toggle":
+            light_bulb_state = not light_bulb_state
+            publish_light_bulb_state()
+
+# Function to publish light bulb state
+def publish_light_bulb_state():
+    global light_bulb_state
+    state_msg = {"state": "on" if light_bulb_state else "off"}
+    client.publish("smart_home/light_bulb/state", json.dumps(state_msg))
+
+# Simulate smart light bulb activity
+def simulate_smart_light():
+    while True:
+        # Generate random changes in light bulb state
+        time.sleep(random.uniform(5, 20))
+        light_bulb_state = random.choice([True, False])
+        publish_light_bulb_state()
+
+# Main program
+if __name__ == "__main__":
+    # Initialize MQTT client
+    client = mqtt.Client()
+    client.on_connect = on_connect
+    client.on_message = on_message
+
+    # Connect to MQTT broker
+    client.connect(broker_address, broker_port, 60)
+
+    # Start background thread for simulating smart light bulb
+    light_thread = threading.Thread(target=simulate_smart_light)
+    light_thread.daemon = True
+    light_thread.start()
+
+    # Loop to maintain MQTT connection
+    client.loop_forever()
+
+python smart_home_light_bulb.py
